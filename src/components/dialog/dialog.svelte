@@ -15,6 +15,7 @@
     escapeCloses?: boolean
     backdropClickCloses?: boolean
     animate?: boolean
+    mobileBreakpoint?: number
     onClose?: () => void
     onBack?: () => void
   }
@@ -23,10 +24,11 @@
   export let modal = true
   export let showClose = false
   export let showBack = false
-  export let size: DialogSizes = 'normal'
+  export let size: DialogSizes = undefined
   export let escapeCloses = true
   export let backdropClickCloses = true
   export let animate = true
+  export let mobileBreakpoint = 375
 
   export let onClose: () => void = undefined
   export let onBack: () => void = undefined
@@ -42,6 +44,33 @@
     isOpen = false
     onClose?.()
   }
+
+  let _size: DialogSizes
+
+  const setSize = (matches: boolean) => {
+    _size = matches ? 'mobile' : 'normal'
+  }
+
+  const changeHandler = (event: MediaQueryListEvent) => setSize(event.matches)
+
+  let mql: MediaQueryList
+  $: {
+    // Ensure any previously set listener is removed
+    mql?.removeEventListener('change', changeHandler)
+
+    // Only set up listener and set _size if consumer hasn't specified a size
+    if (!size) {
+      mql = window.matchMedia(
+        `(max-width: ${mobileBreakpoint}px) and (orientation: portrait), (max-height: ${mobileBreakpoint}px) and (orientation: landscape)`
+      )
+
+      setSize(mql.matches)
+
+      mql.addEventListener('change', changeHandler)
+    } else {
+      _size = size
+    }
+  }
 </script>
 
 {#if isOpen}
@@ -49,7 +78,7 @@
     transition:scale={{ duration: animate ? 60 : 0, start: 0.8 }}
     {...$$restProps}
     class="leo-dialog"
-    class:mobile={size === 'mobile'}
+    class:mobile={_size === 'mobile'}
     class:modal
     class:hasHeader
     class:hasActions={$$slots.actions}
@@ -181,6 +210,12 @@
     width: var(--leo-dialog-width, 374px);
   }
 
+  @media (orientation: landscape) {
+    .leo-dialog.mobile {
+      width: var(--leo-dialog-width, 520px);
+    }
+  }
+
   .leo-dialog:not(.modal) {
     box-shadow: var(--leo-effect-elevation-04);
     border: 1px solid var(--leo-color-divider-subtle);
@@ -263,6 +298,14 @@
     align-items: center;
     justify-content: end;
     gap: var(--leo-spacing-xl);
+  }
+
+  @media (orientation: portrait) {
+    :global .leo-dialog.mobile .actions ::slotted(*),
+    :global .leo-dialog.mobile .actions div[slot='actions'] {
+      flex-direction: column;
+      align-items: stretch;
+    }
   }
 
   .leo-dialog .title-row {
